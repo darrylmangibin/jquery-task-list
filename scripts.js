@@ -1,193 +1,118 @@
-// get tasks for localStorage
-function getTasks() {
-	var tasksJSON = localStorage.getItem('tasks');
-	if(tasksJSON !== null) {
-		return JSON.parse(tasksJSON)
-	} else {
-		return [];
-	}
-}
+$(function() {
+    function getTodos() {
+        var json = localStorage.getItem('todos');
+        try {
+            if(json !== null) {
+                return JSON.parse(json);
+            } else {
+                return [];
+            }
+        } catch (error) {
+            return [];
+        }
+    }
 
-var tasks = getTasks();
+    var todos = getTodos();
 
-// save to localstorage
-function saveTasks() {
-	localStorage.setItem('tasks', JSON.stringify(tasks))
-}
+    function saveTodos() {
+        localStorage.setItem('todos', JSON.stringify(todos));
+    }
 
-$(function(){
-	// render the tasks lists
-	function render(tasks) {
-		$('#ul').html('');
-		$.each(tasks, function(index, task) {
-			var lis = $('<li>');
-			lis.append('<span><i class="fa fa-trash"></i></span> ' + task.text);
+    function render(todos) {
+        var output = '';
+        var completed = '';
+        var options = '<option value="choose">Choose to edit . . .</option>';
+        for(i = 0; i < todos.length; i++) {
+            if (todos[i].completed) {
+                completed = 'completed';
+            }
+            output += '<li class="'+completed+'" data-id="'+todos[i].id+'"><span><i class="fa fa-trash"></i></span>'+todos[i].text+'</li>';
+            options += '<option value="'+todos[i].id+'">'+todos[i].text+'</option>'
+        }
+        $('#ul').html(output);
+        $('#ul li').on('click', function(e) {
+            var this_id = $(this).data().id;
+            var todo;
+            for(i = 0; i < todos.length; i++) {
+                if(this_id === todos[i].id) {
+                    todo = todos[i];
+                }
+            }
+            todo.completed = !todo.completed;
+            if(todo.completed) {
+                $(this).addClass('completed')
+            } else {
+                $(this).removeClass('completed')
+            }
+            saveTodos();
+        });
+        $('#ul li').on('click', 'span', function(e) {
+            var x;
+            var this_id = $(this).parent().data().id
+            e.stopPropagation();
+            for(i = 0; i < todos.length; i++) {
+                if(this_id === todos[i].id) {
+                    x = i
+                }
+            }
+            $(this).parent().fadeOut(400, function(){
+                todos.splice(x, 1);
+                saveTodos();
+            })
+        });
+        $('#select').html(options);
+    }
+    render(todos)
 
-			if(task.completed){
-				lis.addClass('completed')
-			} else {
-				lis.removeClass('completed')
-			}
-			
-			//underline the completed task
-			lis.click(function(e){
-				var id = task.id;
-				var x;
-				$.each(tasks, function(index, task) {
-					if(task.id === id) {
-						x = task
-					}
-				});
-				x.completed = !x.completed;
-				if(x.completed){
-					lis.addClass('completed')
-				} else {
-					lis.removeClass('completed')
-				}
-				saveTasks();
-			});
+    $('#btn').click(function(){
+        var id = uuidv4();
+        var text = $('#add').val();
+        todos.push({
+            id: id,
+            text: text,
+            completed: false
+        });
+        saveTodos();
+        $('#add').val('');
+        render(todos)
+    });
 
-			// remove a task
-			lis.on('click', 'span', function(e) {
-				var id = task.id;
-				
-				e.stopPropagation();
-				$(this).parent().fadeOut(function(){
-					var x;
-					$.each(tasks, function(index, task) {
-						if(task.id === id) {
-							x = index
-						}
-					});
-					if(x > -1) {
-						tasks.splice(x, 1)
-					}
-					saveTasks();
-					selectTask(tasks)
-				});
-			});
+    $('.fa-plus').click(function() {
+        $('#update').fadeToggle()
+    });
+    
+    $('#select').on('change', function(e) {
+        var this_id = $(this).val();
+        var todo;
+        for(i = 0; i < todos.length; i++) {
+            if(todos[i].id === this_id) {
+                todo = todos[i]
+            }
+        }
+        if(todo !== undefined) {
+            $('#updateTask').val(todo.text);
+        }
+    });
+    $('#editBtn').click(function(){
+        var this_id = $('#select').val();
+        var todo;
+        for(i = 0; i < todos.length; i++) {
+            if(this_id === todos[i].id) {
+                todo = todos[i];
+            }
+        }
+        if(todo !== undefined) {
+            todo.text = $('#updateTask').val();
+            saveTodos();
+            render(todos);
+            $('#updateTask').val('');
+        }
+    });
 
-			$('#ul').append(lis)
-		})
-	}
-	render(tasks);
-
-	// render select
-	function selectTask(tasks) {
-		$('#select').html('');
-		var ch = $('<option>');
-		ch.attr('value', 'choose');
-		ch.text('Choose . . .');
-		$('#select').append(ch);
-
-		$.each(tasks, function(index, task){
-			var opt = $('<option>');
-			opt.attr('value', task.id);
-			opt.text(task.text);
-			$('#select').append(opt)
-		});
-	}
-	selectTask(tasks);
-
-	//add a task
-	$('#btn').click(function(){
-		var id = uuidv4();
-		if($('#add').val().length <= 0){
-			alert('Add a Task');
-			return false
-		} else {
-			tasks.push({
-				id: id,
-				text: $('#add').val(),
-				completed: false
-			});
-			saveTasks();
-			render(tasks);
-			selectTask(tasks);
-			$('#add').val('');
-		}
-	});
-
-	// open update div
-	$('.fa-plus').click(function(e){
-		$('#update').slideToggle(1000)
-	});
-
-	$('#select').on('change', function(e) {
-		var id = $(this).val();
-		$.each(tasks, function(index, task) {
-			if(task.id === id) {
-				$('#updateTask').val(task.text)
-			}
-		})
-	})
-
-	// edit task
-	$('#editBtn').click(function(e){
-		var x;
-		$.each(tasks, function(index, task){
-			if(task.id === $('#select').val()) {
-				x = task
-			}
-		});
-
-		if(x === undefined) {
-			alert('Please select a task to Update')
-		} else {
-			x.text = $('#updateTask').val()
-			saveTasks()
-			render(tasks)
-			selectTask(tasks)
-		}
-	});
-
-	//filter task
-	$('#fil').on('input', function(e) {
-		var value = $(this).val().toLowerCase();
-		$('#ul li').filter(function(){
-			$(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
-		})
-	});
-
-	// add a task
-	$('#add').on('keyup', function(e) {
-		if(e.which === 13){
-			var id = uuidv4();
-			if($('#add').val().length <= 0){
-				alert('Add a Task');
-				return false
-			} else {
-				tasks.push({
-				id: id,
-				text: $('#add').val(),
-				completed: false
-			});
-				saveTasks();
-				render(tasks);
-				selectTask(tasks);
-				$('#add').val('');
-			}
-		}
-	});
-
-	// edit task
-	$('#updateTask').on('keyup', function(e) {
-		if(e.which === 13) {
-			var x;
-			$.each(tasks, function(index, task){
-				if(task.id === $('#select').val()) {
-					x = task
-				}
-			});
-
-			if(x === undefined) {
-				alert('Please select a task to Update')
-			} else {
-				x.text = $('#updateTask').val()
-				saveTasks()
-				render(tasks)
-				selectTask(tasks)
-			}
-		}	
-	})
+    $('#fil').on('input', function(e) {
+        var text = $(this).val().toLowerCase();
+        $('#ul li').filter(function(){
+            $(this).toggle($(this).text().toLowerCase().indexOf(text) > -1)
+        })
+    })
 })
